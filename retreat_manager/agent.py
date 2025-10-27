@@ -1,53 +1,119 @@
 # %% [markdown]
-# # Event Decision Agent Notebook
-# 
-# This notebook defines an AI agent that:
-# 1. Gets weather info (mocked).
-# 2. Classifies temperature / precipitation.
-# 3. Recommends suitable event types (outdoor / indoor / online).
-# 4. Explains the decision in natural language.
+# # Event Decision Agent (with Weather Policy Rules)
 #
-# The agent is built using google.adk.agents.llm_agent.Agent style.
+# This notebook builds an AI Agent that:
+# - Looks at forecast weather (temperature, rain, wind, cloud cover)
+# - Classifies those conditions into business-friendly categories
+# - Chooses recommended activity types (outdoor / indoor / remote)
+# - Explains the reasoning so a manager can approve budget & trigger payment
+#
+# This version includes:
+# - temperature category
+# - rain category
+# - wind category
+# - and basic sun/cloud cover, which can be exposed in reasoning
+
 
 # %%
-# Imports
 from typing import Dict, List
 from google.adk.agents.llm_agent import Agent
 
+
 # %% [markdown]
-# ## 1. Activity mapping logic
-# We map (Temperature category, Rain category) → Recommended activities.
+# ## 1. Weather → Activity Mapping
+# We define a policy table ("literature-based") that encodes best-practice guidelines:
+# - temp: Hot / Mild / Cold
+# - rain: Dry / Rainy
+# - wind: Calm / Windy
+#
+# The agent will NOT hallucinate this logic. It will call a tool
+# that returns a deterministic recommendation based on this table.
+#
+# NOTE:
+# - "Rainy" is defined as precipitation_mm_per_hr >= 0.1
+# - "Windy" is defined as wind_speed_m_per_s > 8.0
+# - We'll consider "Calm" otherwise for wind
+# - We'll still capture sun/cloud for explanation, but mapping currently keys on temp/rain/wind.
 
 # %%
-weather_activity_mapping = [ 
-    {"temp": "Hot", "rain": "Dry", "activities": ["Outdoor sports", "Barbecue", "Music festival"],
-     "rationale": "High temperature and almost no rain allow for large outdoor gatherings."},
+weather_mapping = [
+    # ☀️ Sunny & Dry (but "sunny" itself is not in the key, it's used for explanation later)
+    {"temp": "Hot",  "rain": "Dry",   "wind": "Calm",
+     "activities": ["Swimming", "Outdoor music festivals", "BBQ"],
+     "rationale":  "Hot, dry, low wind → outdoor gathering is comfortable and stable."},
 
-    {"temp": "Hot", "rain": "Rainy", "activities": ["Indoor exhibition", "Cinema", "Indoor gym", "Coffee meetup"],
-     "rationale": "It is warm but rainy, so indoor social / leisure activities are more reliable."},
+    {"temp": "Hot",  "rain": "Dry",   "wind": "Windy",
+     "activities": ["Beach walking", "Windsurfing", "Outdoor cafés"],
+     "rationale":  "Hot, dry but windy → wind sports and short outdoor hangs are okay; avoid tents/stages."},
 
-    {"temp": "Mild", "rain": "Dry", "activities": ["Park activities", "Team building exercises", "Outdoor workshop"],
-     "rationale": "Comfortable temperature and dry conditions are ideal for light outdoor group activities."},
+    {"temp": "Mild", "rain": "Dry",   "wind": "Calm",
+     "activities": ["Hiking", "Cycling", "Open markets"],
+     "rationale":  "Mild temp, dry, calm → ideal for casual outdoor and light physical activity."},
 
-    {"temp": "Mild", "rain": "Rainy", "activities": ["Indoor workshop", "Small conference", "Indoor recreation"],
-     "rationale": "Temperature is fine, but rain suggests moving to sheltered/indoor venues."},
+    {"temp": "Mild", "rain": "Dry",   "wind": "Windy",
+     "activities": ["Park strolls", "Photography", "Outdoor jogging"],
+     "rationale":  "Mild and windy → okay for short-duration outdoor movement, but less ideal for long static setups."},
 
-    {"temp": "Cold", "rain": "Dry", "activities": ["Indoor meeting", "Training session", "Museum visit", "Greenhouse event"],
-     "rationale": "Low temperature discourages outdoor time; indoor cultural or training events work well."},
+    {"temp": "Cold", "rain": "Dry",   "wind": "Calm",
+     "activities": ["Museum visits", "City walks", "Warm cafés"],
+     "rationale":  "Cold but calm and dry → short outdoor walks plus mostly indoor cultural / warm stops."},
 
-    {"temp": "Cold", "rain": "Rainy", "activities": ["Online webinar", "Remote event", "Home interactive game night"],
-     "rationale": "Cold and rainy is discouraging for travel; remote/online formats minimize risk and drop-out."}
+    {"temp": "Cold", "rain": "Dry",   "wind": "Windy",
+     "activities": ["Indoor gyms", "Board games", "Libraries"],
+     "rationale":  "Cold + dry + windy → outdoor comfort is low; keep participants indoors."},
+
+    # 🌧 Rainy Conditions
+    {"temp": "Hot",  "rain": "Rainy", "wind": "Calm",
+     "activities": ["Indoor exhibitions", "Cinema", "Café meetups"],
+     "rationale":  "Warm but rainy → people are willing to travel, but prefer covered/indoor social activities."},
+
+    {"temp": "Hot",  "rain": "Rainy", "wind": "Windy",
+     "activities": ["Shopping malls", "Indoor sports", "Cooking at home"],
+     "rationale":  "Warm, rainy, and windy → outdoor travel gets annoying; move to indoor leisure."},
+
+    {"temp": "Mild", "rain": "Rainy", "wind": "Calm",
+     "activities": ["Art galleries", "Workshops", "Indoor reading"],
+     "rationale":  "Mild temp + rain → cozy, culturally oriented indoor activities work well."},
+
+    {"temp": "Mild", "rain": "Rainy", "wind": "Windy",
+     "activities": ["Indoor sports", "Board games", "Work from café"],
+     "rationale":  "Mild temp but rainy and windy → limit movement, keep people in one sheltered location."},
+
+    {"temp": "Cold", "rain": "Rainy", "wind": "Calm",
+     "activities": ["Home cooking", "Cinemas", "Indoor concerts"],
+     "rationale":  "Cold + rain → going outside is unpleasant; entertainment should be indoors and warm."},
+
+    {"temp": "Cold", "rain": "Rainy", "wind": "Windy",
+     "activities": ["Stay home", "Indoor movie", "Online gaming"],
+     "rationale":  "Cold, rainy, and windy → high dropout risk. Recommend remote/online or home-based plans."},
 ]
 
+
 # %% [markdown]
-# Helper functions:
-# - classify_temp: numeric °C → Hot / Mild / Cold
-# - classify_rain: numeric mm → Dry / Rainy
-# - recommend_activities: returns the matching rule row
+# ## 2. Classifiers
+# We categorize raw weather numbers into the discrete buckets used in `weather_mapping`.
+#
+# Assumptions / thresholds:
+# - Temperature in °C:
+#       Hot  : > 25
+#       Mild : > 10 and ≤ 25
+#       Cold : ≤ 10
+#
+# - Rainy vs Dry:
+#       Rainy if precipitation_mm_per_hr >= 0.1
+#       Dry otherwise
+#
+# - Wind:
+#       Windy if wind_speed_m_per_s > 8.0
+#       Calm otherwise
+#
+# - Sunny / Cloudy (not used as a key, but nice for explanation in text output):
+#       Sunny if cloud_cover_percent < 30
+#       Cloudy otherwise
 
 # %%
 def classify_temp(temp_c: float) -> str:
-    """Classify a temperature (°C) into Hot / Mild / Cold."""
+    """Return 'Hot', 'Mild', or 'Cold' based on °C."""
     if temp_c > 25:
         return "Hot"
     elif temp_c > 10:
@@ -56,78 +122,114 @@ def classify_temp(temp_c: float) -> str:
         return "Cold"
 
 
-def classify_rain(rain_mm: float) -> str:
-    """Classify precipitation (mm) into Dry / Rainy."""
-    if rain_mm < 1:
-        return "Dry"
-    else:
+def classify_rain(precip_mm_per_hr: float) -> str:
+    """Return 'Rainy' or 'Dry' based on precipitation mm/hr."""
+    if precip_mm_per_hr >= 0.1:
         return "Rainy"
+    else:
+        return "Dry"
 
 
-def lookup_activity_rule(temp_cat: str, rain_cat: str) -> Dict:
-    """Return the mapping row for (temp_cat, rain_cat)."""
-    for row in weather_activity_mapping:
-        if row["temp"] == temp_cat and row["rain"] == rain_cat:
+def classify_wind(wind_speed_m_per_s: float) -> str:
+    """Return 'Windy' or 'Calm' based on wind speed (m/s)."""
+    if wind_speed_m_per_s > 8.0:
+        return "Windy"
+    else:
+        return "Calm"
+
+
+def classify_sky(cloud_cover_percent: float) -> str:
+    """Return 'Sunny/Clear' or 'Cloudy/Overcast' for explanation."""
+    if cloud_cover_percent < 30:
+        return "Sunny/Clear"
+    else:
+        return "Cloudy/Overcast"
+
+
+# %% [markdown]
+# ## 3. Mapping Lookup
+# Given (temp_cat, rain_cat, wind_cat), we pick the first matching rule from `weather_mapping`.
+# We also include sky condition in the explanation for business context, but sky is not part of the key.
+
+# %%
+def lookup_weather_rule(temp_cat: str, rain_cat: str, wind_cat: str) -> Dict:
+    """Find the first rule that matches temp/rain/wind categories."""
+    for row in weather_mapping:
+        if (
+            row["temp"] == temp_cat and
+            row["rain"] == rain_cat and
+            row["wind"] == wind_cat
+        ):
             return row
     # fallback if nothing matches
     return {
-        "temp": temp_cat,
-        "rain": rain_cat,
         "activities": [],
-        "rationale": "No rule found."
+        "rationale": "No predefined rule for this combination."
     }
 
 
-def recommend_activities(temp_c: float, rain_mm: float) -> Dict:
+def recommend_activities(
+    temp_c: float,
+    precip_mm_per_hr: float,
+    wind_speed_m_per_s: float,
+    cloud_cover_percent: float
+) -> Dict:
     """
-    Given numeric forecast inputs, return:
-    - temp_category
-    - rain_category
-    - suggested activities
-    - rationale
+    Build a structured recommendation object using:
+    - classified categories
+    - mapped activity suggestions
+    - rationale for business explanation
     """
-    tcat = classify_temp(temp_c)
-    rcat = classify_rain(rain_mm)
-    rule = lookup_activity_rule(tcat, rcat)
+    tcat  = classify_temp(temp_c)
+    rcat  = classify_rain(precip_mm_per_hr)
+    wcat  = classify_wind(wind_speed_m_per_s)
+    sky   = classify_sky(cloud_cover_percent)
+
+    rule  = lookup_weather_rule(tcat, rcat, wcat)
+
     return {
-        "temp_category": tcat,
-        "rain_category": rcat,
-        "activities": rule["activities"],
-        "rationale": rule["rationale"],
-        "extracted_inputs": {
+        "categories": {
+            "temp_category": tcat,
+            "rain_category": rcat,
+            "wind_category": wcat,
+            "sky_condition": sky
+        },
+        "raw_weather": {
             "temperature_c": temp_c,
-            "rain_mm": rain_mm
-        }
+            "precip_mm_per_hr": precip_mm_per_hr,
+            "wind_speed_m_per_s": wind_speed_m_per_s,
+            "cloud_cover_percent": cloud_cover_percent
+        },
+        "suggested_activities": rule["activities"],
+        "rationale": rule["rationale"]
     }
 
-# Quick smoke test
-print(recommend_activities(28, 0.2))
-print(recommend_activities(12, 3.5))
-print(recommend_activities(4, 5.0))
+
+# quick smoke tests
+print(recommend_activities(temp_c=30.0, precip_mm_per_hr=0.0, wind_speed_m_per_s=3.0, cloud_cover_percent=10))
+print(recommend_activities(temp_c=12.0, precip_mm_per_hr=0.2, wind_speed_m_per_s=10.0, cloud_cover_percent=90))
+print(recommend_activities(temp_c=5.0, precip_mm_per_hr=0.5, wind_speed_m_per_s=12.0, cloud_cover_percent=95))
+
 
 # %% [markdown]
-# ## 2. Mock tool functions (to be exposed to the agent)
-# 
-# In Google ADK style, tools are normal Python callables.
-# We'll expose two tools:
-# 
-# 1. `get_current_time(city: str)`  
-#    - Your original example, kept for backward compatibility / demo.
+# ## 4. Mock Weather Tool
 #
-# 2. `get_weather_and_recommend(city: str, date: str)`  
-#    - Returns forecasted temperature and precipitation (mocked here),
-#      plus recommended activity types for that weather.
+# We'll expose a tool the agent can call: `get_weather_and_recommend(city, date)`.
 #
-# In a real system, `get_weather_and_recommend` would:
-# - call a weather API (e.g. Open-Meteo / Google Weather / internal service)
-# - feed temp & rain into `recommend_activities`
-# - return a structured dict
+# For hackathon demo, we mock weather for a few cities/dates and return:
+# - temperature (°C)
+# - precipitation (mm/hr)
+# - wind speed (m/s)
+# - cloud cover (%)
+#
+# Then we run `recommend_activities(...)` using that mock forecast.
+#
+# IMPORTANT:
+# The output of this tool is EXACTLY what the LLM agent will see, so we keep it structured.
 
 # %%
 def get_current_time(city: str) -> dict:
-    """Returns the current time in a specified city.
-    (Mock implementation for demo)
-    """
+    """Returns the current time in a specified city. (Mock demo tool)"""
     return {
         "status": "success",
         "city": city,
@@ -136,144 +238,197 @@ def get_current_time(city: str) -> dict:
 
 
 def mock_get_weather_forecast(city: str, date: str) -> Dict[str, float]:
-    """Mock weather forecast service.
-    Replace this with a real weather API call in production.
-    Returns forecasted temperature in Celsius and precipitation in mm.
     """
-    # For demo we hardcode a few cases:
+    Mock forecast.
+    In production, replace this with a real weather API (Open-Meteo, etc.).
+    Units:
+      temp_c → °C
+      precip_mm_per_hr → mm/hr
+      wind_speed_m_per_s → m/s
+      cloud_cover_percent → %
+    """
     demo_db = {
-        ("Amsterdam", "2025-10-28"): {"temp_c": 27.0, "rain_mm": 0.2},
-        ("Amsterdam", "2025-10-29"): {"temp_c": 12.0, "rain_mm": 4.0},
-        ("London",    "2025-10-28"): {"temp_c": 9.0,  "rain_mm": 5.5},
-        ("Barcelona", "2025-10-28"): {"temp_c": 30.0, "rain_mm": 0.0},
+        ("Amsterdam", "2025-10-28"): {
+            "temp_c": 27.0,
+            "precip_mm_per_hr": 0.0,
+            "wind_speed_m_per_s": 4.0,
+            "cloud_cover_percent": 20.0
+        },  # Hot, Dry, Calm, Sunny/Clear
+
+        ("Amsterdam", "2025-10-29"): {
+            "temp_c": 12.0,
+            "precip_mm_per_hr": 0.3,
+            "wind_speed_m_per_s": 10.0,
+            "cloud_cover_percent": 95.0
+        },  # Mild, Rainy, Windy, Cloudy/Overcast
+
+        ("London", "2025-10-28"): {
+            "temp_c": 9.0,
+            "precip_mm_per_hr": 0.6,
+            "wind_speed_m_per_s": 12.0,
+            "cloud_cover_percent": 90.0
+        },  # Cold, Rainy, Windy, Cloudy/Overcast
+
+        ("Barcelona", "2025-10-28"): {
+            "temp_c": 30.0,
+            "precip_mm_per_hr": 0.0,
+            "wind_speed_m_per_s": 9.0,
+            "cloud_cover_percent": 15.0
+        },  # Hot, Dry, Windy, Sunny/Clear
     }
-    return demo_db.get((city, date), {"temp_c": 20.0, "rain_mm": 0.0})
+
+    return demo_db.get(
+        (city, date),
+        {
+            "temp_c": 20.0,
+            "precip_mm_per_hr": 0.0,
+            "wind_speed_m_per_s": 3.0,
+            "cloud_cover_percent": 40.0
+        }  # Default: Mild, Dry, Calm-ish / Cloudy
+    )
 
 
 def get_weather_and_recommend(city: str, date: str) -> dict:
     """
-    Tool callable by the agent.
-    1. Get forecast (mock).
-    2. Classify temp/rain.
-    3. Suggest activities.
-    4. Return machine-readable summary the LLM can explain to the user.
+    Tool callable by the agent:
+    1. Get forecast.
+    2. Classify weather into categories (temp/rain/wind/sky).
+    3. Match against weather_mapping.
+    4. Return suggested activities and rationale.
     """
     forecast = mock_get_weather_forecast(city, date)
+
     rec = recommend_activities(
         temp_c=forecast["temp_c"],
-        rain_mm=forecast["rain_mm"]
+        precip_mm_per_hr=forecast["precip_mm_per_hr"],
+        wind_speed_m_per_s=forecast["wind_speed_m_per_s"],
+        cloud_cover_percent=forecast["cloud_cover_percent"]
     )
 
     return {
         "status": "success",
         "city": city,
         "date": date,
-        "weather_forecast": {
-            "temp_c": forecast["temp_c"],
-            "rain_mm": forecast["rain_mm"],
-            "temp_category": rec["temp_category"],
-            "rain_category": rec["rain_category"],
-        },
-        "suggested_activities": rec["activities"],
-        "explanation": rec["rationale"]
+        "categories": rec["categories"],       # Hot/Mild/Cold, Dry/Rainy, Calm/Windy, Sunny/Cloudy
+        "raw_weather": rec["raw_weather"],     # numeric values
+        "suggested_activities": rec["suggested_activities"],
+        "business_rationale": rec["rationale"],
+        "business_note": (
+            "These suggestions are based on predefined safety/comfort rules. "
+            "After you pick one activity format, I can proceed with vendor booking "
+            "and trigger the payment request workflow."
+        )
     }
 
-# Quick smoke test
+
+# smoke check
 print(get_weather_and_recommend("Amsterdam", "2025-10-28"))
+print(get_weather_and_recommend("Amsterdam", "2025-10-29"))
 print(get_weather_and_recommend("London", "2025-10-28"))
+print(get_weather_and_recommend("Barcelona", "2025-10-28"))
+
 
 # %% [markdown]
-# ## 3. Define the Decision Agent
-# 
-# Now we create an Agent that:
-# - understands it's an "Event Decision Agent"
-# - knows it can call 2 tools:
-#   - get_current_time
-#   - get_weather_and_recommend
-# - and is instructed to:
-#   - recommend what kind of event to plan,
-#   - justify the recommendation in business terms,
-#   - mention risk (e.g. “high rain risk, move indoor to reduce cancellation cost”)
+# ## 5. Define the AI Agent
 #
-# This is now aligned with the hackathon topic: **Business Automation**.
-# It's no longer just weather. It's: use weather to drive an event ops decision.
+# We now create an Agent that:
+# - understands it's an "Event Decision Agent"
+# - knows it has 2 tools:
+#   - `get_weather_and_recommend` (the main one)
+#   - `get_current_time` (still available; shows multi-tool orchestration)
+#
+# The instruction tells it how to act like a business automation agent:
+# - recommend activity format
+# - mention risk / comfort
+# - explain why this supports budget approval
+# - mention it can trigger payment after decision
 
 # %%
 decision_agent = Agent(
     model="gemini-2.5-flash",
     name="decision_agent",
     description=(
-        "Event Decision Agent that makes business recommendations about "
-        "what type of event should be organized based on forecast weather, "
-        "and explains operational risk."
+        "Event Decision Agent that recommends suitable activity formats "
+        "based on forecast weather (temperature, rain, wind, sky) and "
+        "explains operational risk for planning and vendor payment."
     ),
     instruction=(
-        "You are an Event Decision Agent for corporate event planning.\n"
-        "- When the user asks about planning an event in a given city and date, "
-        "call the 'get_weather_and_recommend' tool to retrieve forecasted "
-        "temperature and precipitation, plus suitable activity types.\n"
-        "- Use that to recommend:\n"
-        "  * outdoor, indoor, or online format\n"
-        "  * example activity types (e.g. team building, workshop, webinar)\n"
-        "  * risk justification (rain risk, comfort, attendance impact)\n"
-        "- If the user only wants current time in a city, you may call 'get_current_time'.\n"
-        "- Always answer in concise business English suitable for a manager.\n"
-        "- If asked about payment or booking next steps, explicitly say you can trigger a payment request "
-        "after the event type is confirmed."
+        "You are an Event Decision Agent for corporate and customer events.\n"
+        "\n"
+        "When the user asks about planning an event in a given city and date:\n"
+        "1. Call the 'get_weather_and_recommend' tool to retrieve:\n"
+        "   - forecast temperature, rain, wind, and cloud cover\n"
+        "   - categorized conditions (Hot/Mild/Cold, Dry/Rainy, Calm/Windy)\n"
+        "   - suggested activity types and rationale\n"
+        "2. Recommend:\n"
+        "   - outdoor / indoor / remote format\n"
+        "   - concrete examples of activities from the tool output\n"
+        "   - logistics risk (e.g. high wind, rain, comfort)\n"
+        "3. Explain briefly why this plan is low risk and budget-justified.\n"
+        "4. End by saying you can proceed to vendor booking and trigger payment "
+        "once the user confirms the format.\n"
+        "\n"
+        "If the user only wants the current time in a city, use 'get_current_time'.\n"
+        "Always answer in concise business English for a manager.\n"
     ),
     tools=[get_current_time, get_weather_and_recommend],
 )
 
+
 # %% [markdown]
-# ## 4. Example usage flow (pseudo-chat)
-# 
-# Below are example prompts you would send to the agent at runtime.
-# (Exact API for calling `Agent` will depend on google.adk runtime, so we mock it here.)
+# ## 6. Example usage (simulation)
 #
-# We simulate:
-# - Ask: "We want to plan a customer meetup in Amsterdam on 2025-10-28. What format do you recommend?"
-# - Agent SHOULD call `get_weather_and_recommend("Amsterdam","2025-10-28")`
-# - Then respond with a recommendation.
+# We simulate how the agent would use the tool and then respond.
+# In a real runtime, `decision_agent` would internally decide to call
+# `get_weather_and_recommend`. Here we manually call that tool and show
+# an example manager-facing message.
 
 # %%
-# Pseudo code / illustration. Adjust to match your Agent runtime's .run() or .invoke() method.
-def simulate_agent_call(city: str, date: str):
+def simulate_manager_question(city: str, date: str):
     tool_result = get_weather_and_recommend(city, date)
 
-    # What the LLM would *see* from the tool:
-    print("=== TOOL RESULT (what the agent tool would return) ===")
+    print("=== TOOL RESULT (what the tool returns to the agent) ===")
     print(tool_result)
 
-    # And this is roughly what we'd expect the LLM to answer to end user:
-    summary = (
-        f"For {city} on {date}, forecast temperature is "
-        f"{tool_result['weather_forecast']['temp_c']}°C "
-        f"({tool_result['weather_forecast']['temp_category']}) "
-        f"with expected precipitation {tool_result['weather_forecast']['rain_mm']} mm "
-        f"({tool_result['weather_forecast']['rain_category']}).\n\n"
-        f"Recommended event format: {tool_result['suggested_activities'][0]} or similar.\n"
-        f"Rationale: {tool_result['explanation']}\n\n"
-        "Operational note: Based on these conditions, we can proceed with booking and "
-        "issuing the payment request for the venue/vendors."
+    cats = tool_result["categories"]
+    acts = tool_result["suggested_activities"]
+    rationale = tool_result["business_rationale"]
+
+    # This is roughly what we'd expect the LLM to reply to the end user:
+    manager_summary = (
+        f"For {city} on {date}, conditions are categorized as:\n"
+        f"- Temp: {cats['temp_category']}\n"
+        f"- Rain: {cats['rain_category']}\n"
+        f"- Wind: {cats['wind_category']}\n"
+        f"- Sky:  {cats['sky_condition']}\n\n"
+        f"Recommended activity format: {acts[0] if acts else 'indoor/remote plan'}.\n"
+        f"Alternative options: {', '.join(acts[1:]) if len(acts) > 1 else 'N/A'}.\n\n"
+        f"Reasoning: {rationale}\n\n"
+        "Operational note: Based on this, I can proceed with vendor booking "
+        "and trigger the payment request workflow once you confirm the format."
     )
 
-    print("\n=== EXPECTED AGENT SUMMARY TO USER ===")
-    print(summary)
+    print("\n=== EXPECTED AGENT SUMMARY TO MANAGER ===")
+    print(manager_summary)
 
-simulate_agent_call("Amsterdam", "2025-10-28")
-simulate_agent_call("London", "2025-10-28")
+
+simulate_manager_question("Amsterdam", "2025-10-28")
+simulate_manager_question("Amsterdam", "2025-10-29")
+simulate_manager_question("London", "2025-10-28")
+simulate_manager_question("Barcelona", "2025-10-28")
+
 
 # %% [markdown]
-# ## 5. Next steps / how to present this at hackathon
-# 
-# - You can show the mapping table as your internal policy / business rule engine.
-# - You can show `decision_agent` as the AI layer that automates:
-#     - risk assessment,
-#     - event type decision,
-#     - and readiness to trigger payment.
-# - Your teammate's payment trigger endpoint becomes the "next step after approval".
-# 
-# This tells a complete story:
-# > data ingestion (weather) → decision policy (mapping) → agent reasoning (LLM) → business action (payment).
+# ## 7. Hackathon pitch takeaways
 #
-# Which matches "Automation for Business".
+# - You now have:
+#   - Deterministic rule base (governance-friendly, auditable).
+#   - Tool-using LLM agent (Google ADK Agent).
+#   - Clear business action hook (book vendor + trigger payment).
+#
+# - Judges love:
+#   - Risk mitigation logic (windy/rainy -> move indoors).
+#   - Automation narrative ("We take weather risk off the manager's plate").
+#   - Cost control narrative ("We don't pay for outdoor staging in unsafe weather").
+#
+# This directly fits the "Automation for Business" track.
