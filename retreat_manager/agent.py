@@ -1,6 +1,16 @@
 from google.adk.agents.llm_agent import Agent
 import requests
 import json
+import os
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
+
+# Access the variable
+GOOGLE_GENAI_USE_VERTEXAI = os.getenv('GOOGLE_GENAI_USE_VERTEXAI')
+GOOGLE_CLOUD_PROJECT = os.getenv('GOOGLE_CLOUD_PROJECT')
+GOOGLE_API_KEY=os.getenv('GOOGLE_API_KEY')
 
 # Tool implementation
 def get_weather_forecast(city: str) -> dict:
