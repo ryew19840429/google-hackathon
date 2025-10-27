@@ -197,7 +197,7 @@ def display_chat_history():
         with st.chat_message(message["role"], avatar=AGENT_AVATAR if message["role"] == "agent" else None):
             # Handle the special "CONNECTING" message
             if message.get("content") == "CONNECTING":
-                with st.spinner("Connecting to agent..."):
+                with st.spinner("Connecting to your travel assistant..."):
                     create_agent_session()
 
             # Check for the initial greeting placeholder
@@ -332,15 +332,107 @@ def handle_user_input(prompt_input):
 def login_form():
     """Displays the login form and handles the authentication logic."""
     
-    st.title("Travel Agentcy - Login")
+    # Custom CSS for travel agency login styling
+    st.markdown("""
+        <style>
+        /* Main background with gradient */
+        .stApp {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        /* Login container styling */
+        [data-testid="stForm"] {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3rem 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            max-width: 450px;
+            margin: 0 auto;
+        }
+        
+        /* Title styling */
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            font-family: 'Helvetica Neue', sans-serif;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-size: 2.2rem;
+        }
+        
+        /* Input field container - remove background */
+        .stTextInput > div {
+            background: transparent !important;
+        }
+        
+        /* Input fields */
+        .stTextInput > div > div > input {
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            padding: 12px 16px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white !important;
+        }
+        
+        .stTextInput > div > div > input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        /* Button styling */
+        .stButton > button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 1rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Label styling */
+        .stTextInput > label {
+            color: #4a5568;
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Error message styling */
+        .stAlert {
+            border-radius: 10px;
+            margin-top: 1rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Login header with icon
+    st.markdown("""
+        <div style='text-align: center; margin-bottom: 2rem;'>
+            <div style='font-size: 4rem; margin-bottom: 1rem;'>✈️</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.title("Welcome Back")
     
     with st.form("login_form"):
-        st.markdown("Enter your credentials to access the chat application.")
+        st.markdown("<p style='text-align: center; color: #718096; margin-bottom: 2rem;'>Sign in to access your travel management dashboard</p>", unsafe_allow_html=True)
         
-        username = st_keyup("Username", key="username_input")
+        username = st.text_input("Username", key="username_input")
         password = st.text_input("Password", type="password", key="password_input")
         
-        login_pressed = st.form_submit_button("Log In") or st.session_state.get('username_input_return', False)
+        login_pressed = st.form_submit_button("Sign In") or st.session_state.get('username_input_return', False)
         
         if login_pressed:
             
@@ -354,9 +446,7 @@ def login_form():
                 # Reruns immediately to load the main app (no success message shown)
                 st.rerun() 
             else:
-                st.error("Invalid Username or Password")
-                
-    st.stop() # Stop execution of the rest of the app until logged in
+                st.error("Invalid username or password. Please try again.")
 
 # =====================================================================
 # --- Main Streamlit Function ---
@@ -367,7 +457,8 @@ def main():
     st.set_option("client.toolbarMode", "minimal")
     # Set page configuration
     st.set_page_config(
-        page_title="My Travel Agent", 
+        page_title="Travel Agency Assistant", 
+        page_icon="✈️",
         layout="centered",
         initial_sidebar_state="collapsed"
     )
@@ -380,7 +471,107 @@ def main():
         
     # --- Main App Logic (Runs only if logged_in is True or LOGIN_ENABLED is False) ---
     
-    st.title(f"I Love Travel Agentcy") 
+    # Custom CSS for main chat interface
+    st.markdown("""
+        <style>
+        /* Main app background */
+        .stApp {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        
+        /* Header styling */
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            font-family: 'Helvetica Neue', sans-serif;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Subtitle styling */
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            font-weight: 500;
+        }
+        
+        /* Chat message containers */
+        [data-testid="stChatMessageContent"] {
+            background: white;
+            border-radius: 15px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* User message styling */
+        [data-testid="stChatMessage"]:has([data-testid="stChatMessageContent"]:first-child) {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 0.2rem;
+        }
+        
+        /* Chat input styling */
+        [data-testid="stChatInput"] {
+            border-radius: 25px;
+            border: 2px solid #e2e8f0;
+            background: white;
+        }
+        
+        [data-testid="stChatInput"] textarea {
+            border-radius: 20px;
+        }
+        
+        /* Spinner styling */
+        .stSpinner > div {
+            border-top-color: #667eea !important;
+        }
+        
+        /* Image styling */
+        [data-testid="stImage"] {
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Welcome banner */
+        .welcome-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        /* Chat container */
+        [data-testid="stChatMessageContainer"] {
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Welcome header with airplane icon
+    st.markdown("""
+        <div style='text-align: center; margin-bottom: 1rem;'>
+            <div style='font-size: 3.5rem; margin-bottom: 0.5rem;'>✈️</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.title(f"Your Personal Travel Assistant") 
+    
+    # Subtitle with user greeting
+    current_user = get_user_id().title()
+    st.markdown(f"<p class='subtitle'>Welcome back, {current_user}! How can I help you plan your next adventure today?</p>", unsafe_allow_html=True)
     
     # Attempt to create session only if not already created or attempted
     if st.session_state.session_id is None and not st.session_state.session_creation_attempted:
@@ -404,7 +595,7 @@ def main():
     # --- Main Chat Input Loop ---
     
     prompt_input = st.chat_input(
-        "Type something to help with your travel agent business", 
+        "✨ Share your travel plans or ask me anything...", 
         disabled=st.session_state.session_id is None, 
         accept_file=True
     )
