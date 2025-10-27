@@ -35,7 +35,7 @@ def generate_image(prompt: str) -> dict:
                 text_response += part.text + "\n"
             elif part.inline_data is not None:
                 image = Image.open(BytesIO(part.inline_data.data))
-                image.save("cat.png")
+                image.save("marketing-image.png")
                 image_saved = True
 
         if image_saved:
