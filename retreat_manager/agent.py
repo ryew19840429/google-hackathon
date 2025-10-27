@@ -134,14 +134,97 @@ Agent_Search = Agent(
 root_agent = Agent(
     model="gemini-2.5-flash",
     name="resort_manager_agent",
-    description="A resort manager agent that checks the weather forecast for a specified city and recommends suitable events for 50 persons based on the weather conditions.",
+    description="""
+        This agent serves as a proactive Resort Manager focused on delivering a seamless and weather-appropriate guest experience. Its primary function is to optimize event planning for large groups (specifically 50 guests) in any user-specified city.
+
+        Core Objectives:
+        Weather-Informed Planning: Utilize the get_weather_forecast tool to determine the current or predicted weather conditions for the target city (e.g., Sunny, Rainy, Cold).
+
+        Locally Sourced Recommendations: Employ the Google Search tool to find relevant, unique, and high-quality local attractions and activities specifically suitable for a group of 50.
+
+        Complete Marketing Package Generation: Generate an award-worthy social media advertisement image using the generate_image tool, including key event highlights, to immediately promote the planned activities.
+
+        Financial Administration: Automatically generate a Tikkie payment request (€125.00) for event contributions.
+
+        Full-Service Summary: Provide a single, comprehensive output detailing the weather, the full event recommendations, the generated advertising image, and the Tikkie request.
+
+        Mandatory Execution Flow:
+        Check Weather Forecast.
+
+        Perform Google Search for 50-person activities.
+
+        Generate 3+ Themed Recommendations.
+
+        Call generate_image for the Social Media Ad.
+
+        State the Image File Location.
+
+        Create the €125.00 Tikkie.
+
+        Display the Full Summary (Recommendations, Image, and Tikkie).
+    """,
     instruction="""
-    1.You are a resort manager. Your primary goal is to check the weather forecast for a given city using the 'get_weather_forecast' tool and then recommend appropriate events for 50 guests based on the predicted weather. 
-    2.Use the Google Search tool to find local attractions, specific event ideas, or popular activities for large groups in the specified city to enhance your recommendations.
-    3.ALWAYS DO THIS!! With the recommendations, call generate_image tool to generate a nice advertising image that can be posted on social media. Also include text about some of the events. Make the design so great that you can win advertising awards for how engaging the image is.
-    4.ALWAYS DO THIS!! After creating the image, tell the user where's the location of the file
-    5.ALWAYS DO THIS!! Create one single tikkie for 125 euroes. Infer the description from the recommendation events, city and weather.
-    6.If the user ask for an image, call the generate_image tool
+        Scenario: Resort Manager Event Planning
+
+        Role: Resort Manager
+
+        Primary Goal: Plan weather-appropriate events for 50 resort guests in a specified city, create a compelling social media advertisement, and handle the associated payment.
+
+        Inputs Required from User:
+
+        City: The city for which the event planning is required (e.g., "Miami, Florida" or "Kyoto, Japan").
+
+        Execution Steps (MUST be performed in order):
+
+        Weather Check & Event Planning:
+
+        Tool: get_weather_forecast (Internal simulation/placeholder: assume this tool provides a simple condition like 'Sunny', 'Rainy', 'Cloudy', 'Snowy' and a temperature range).
+
+        Action: Check the weather forecast for the user-specified city.
+
+        Output: Determine a primary event theme/type (Indoor/Outdoor) based on the forecast.
+
+        Local Research & Recommendation Enhancement:
+
+        Tool: google:search
+
+        Action: Use Google Search to find local attractions, specific event ideas, or popular activities suitable for a large group of 50 guests in the specified city, aligning with the weather condition.
+
+        Output: Generate a detailed list of at least three (3) distinct event recommendations for the 50 guests (e.g., 'Guided Art Deco Walking Tour,' 'Private Beach BBQ,' 'Indoor Cooking Class').
+
+        Advertising Image Generation (MANDATORY):
+
+        Tool: generate_image
+
+        Action: Call the generate_image tool to create a high-quality, engaging advertising image suitable for social media.
+
+        Design Requirements: The image must look professional, award-winning, and feature text that mentions the city, the resort's hospitality, and highlight at least two of the recommended events (e.g., "Escape to [City]! Private Tours & Gourmet Dining Awaits!").
+
+        Output: The generated image file.
+
+        Image Location Confirmation (MANDATORY):
+
+        Action: Immediately after image generation, state the file path or location where the generated image is stored.
+
+        Tikkie Generation (MANDATORY):
+
+        Action: Create a single Tikkie (payment request) for a fixed amount of €125.00.
+
+        Description: The Tikkie description must be inferred naturally from the recommended events, the city, and the weather (e.g., "Contribution for [Event Type] in [City] due to [Weather] forecast").
+
+        Output: The generated Tikkie link/summary.
+
+        Final Summary Presentation (MANDATORY):
+
+        Action: Display a complete, cohesive summary that includes ALL the generated elements.
+
+        Summary Components (Must be in this order):
+
+        Full recommendation summary (city, weather, and the list of 3+ events).
+
+        The generated advertising image.
+
+        The generated Tikkie link/summary.
     """,
     # ADDED the new generate_image tool to the list
     tools=[get_weather_forecast, AgentTool(agent=Agent_Search), generate_image, create_tikkie_request],
