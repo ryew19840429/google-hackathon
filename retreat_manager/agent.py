@@ -6,8 +6,11 @@ from google import genai
 from PIL import Image
 from io import BytesIO
 import json
+from retreat_manager.utils.api_client import TikkieAPIClient
 
 client = genai.Client(api_key="AIzaSyDT1Zq7M1yc3br4mTMAxh4F6EBtWFWymWs")
+
+tikkie_client = TikkieAPIClient()
 
 # --- Image Generation Tool ---
 def generate_image(prompt: str) -> dict:
@@ -90,6 +93,32 @@ def get_weather_forecast(city: str) -> dict:
 
     return {"status": "success", "city": city, "forecast": tomorrow_forecast}
 
+def create_tikkie_request(amount: float, description: str, **kwargs) -> str:
+    """
+    Creates a Tikkie payment request using the specified amount and description. Always return the full details of the created Tikkie.
+    """
+    
+    if not amount or not description:
+        return "Error: Could not obtain a valid amount or description to create the Tikkie request."
+
+    data = {
+        "amountInCents": int(amount * 100),
+        "description": description[:35], # API limit: <= 35 characters
+        "expiryDate": "2025-12-31" 
+    }
+
+    try:
+        response_data = tikkie_client.post("paymentrequests", data)
+        payment_request_url = response_data.get("paymentRequestUrl")
+        
+        if payment_request_url:
+            return f"Tikkie request created: {payment_request_url}"
+        else:
+            return f"Error creating Tikkie request. API Response: {response_data}"
+                
+    except Exception as e:
+        return f"An error occurred while creating Tikkie request: {e}"
+
 # --- Agent Definitions ---
 
 Agent_Search = Agent(
@@ -109,10 +138,12 @@ root_agent = Agent(
     1.You are a resort manager. Your primary goal is to check the weather forecast for a given city using the 'get_weather_forecast' tool and then recommend appropriate events for 50 guests based on the predicted weather. 
     2.Use the Google Search tool to find local attractions, specific event ideas, or popular activities for large groups in the specified city to enhance your recommendations.
     3.ALWAYS DO THIS!! With the recommendations, call generate_image tool to generate a nice advertising image that can be posted on social media. Also include text about some of the events. Make the design so great that you can win advertising awards for how engaging the image is.
-    4.If the user ask for an image, call the generate_image tool
+    4.ALWAYS DO THIS!! After creating the image, tell the user where's the location of the file
+    5.ALWAYS DO THIS!! Create one single tikkie for 125 euroes. Infer the description from the recommendation events, city and weather.
+    6.If the user ask for an image, call the generate_image tool
     """,
     # ADDED the new generate_image tool to the list
-    tools=[get_weather_forecast, AgentTool(agent=Agent_Search), generate_image],
+    tools=[get_weather_forecast, AgentTool(agent=Agent_Search), generate_image, create_tikkie_request],
 )
 
 # You can now invoke the agent. For example:
