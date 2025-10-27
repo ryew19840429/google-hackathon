@@ -14,7 +14,7 @@ tikkie_client = TikkieAPIClient()
 
 # --- Image Generation Tool ---
 def generate_image(prompt: str) -> dict:
-    """Generates an image based on a text prompt and saves it as 'cat.png'."""
+    """Generates an image based on a text prompt and saves it as 'marketing-image.png'."""
     try:
         # Call the API to generate content
         response = client.models.generate_content(
@@ -39,7 +39,7 @@ def generate_image(prompt: str) -> dict:
                 image_saved = True
 
         if image_saved:
-            return {"status": "success", "message": "Image saved as 'cat.png'.", "text_response": text_response.strip()}
+            return {"status": "success", "message": "Image saved as 'marketing-image.png'.", "text_response": text_response.strip()}
         elif text_response:
              return {"status": "info", "message": "No image generated, received text response.", "text_response": text_response.strip()}
         else:
