@@ -6,11 +6,12 @@ from google import genai
 from PIL import Image
 from io import BytesIO
 import json
-from retreat_manager.utils.api_client import TikkieAPIClient
+# REMOVE THE GLOBAL IMPORT: from retreat_manager.utils.api_client import TikkieAPIClient
+
+
+# REMOVE THE GLOBAL INSTANTIATION: tikkie_client = TikkieAPIClient()
 
 client = genai.Client(api_key="AIzaSyDT1Zq7M1yc3br4mTMAxh4F6EBtWFWymWs")
-
-tikkie_client = TikkieAPIClient()
 
 # --- Image Generation Tool ---
 def generate_image(prompt: str) -> dict:
@@ -98,6 +99,10 @@ def create_tikkie_request(amount: float, description: str, **kwargs) -> str:
     Creates a Tikkie payment request using the specified amount and description. Always return the full details of the created Tikkie.
     """
     
+    # FIX: Move the import and instantiation inside the function call
+    from retreat_manager.utils.api_client import TikkieAPIClient
+    tikkie_client = TikkieAPIClient()
+    
     if not amount or not description:
         return "Error: Could not obtain a valid amount or description to create the Tikkie request."
 
@@ -145,7 +150,3 @@ root_agent = Agent(
     # ADDED the new generate_image tool to the list
     tools=[get_weather_forecast, AgentTool(agent=Agent_Search), generate_image, create_tikkie_request],
 )
-
-# You can now invoke the agent. For example:
-# response = root_agent.generate_content("What's the weather in London tomorrow and suggest an event? Also, generate an image of a sunny park.")
-# print(response)
