@@ -1,5 +1,7 @@
 from google.adk.agents.llm_agent import Agent
+from google.adk.tools.agent_tool import AgentTool
 import requests
+from google.adk.tools import google_search
 import json
 
 # Tool implementation
@@ -47,10 +49,19 @@ def get_weather_forecast(city: str) -> dict:
 
     return {"status": "success", "city": city, "forecast": tomorrow_forecast}
 
+Agent_Search = Agent(
+    model='gemini-2.0-flash-exp',
+    name='SearchAgent',
+    instruction="""
+    You're a spealist in Google Search
+    """,
+    tools=[google_search]
+)
+
 root_agent = Agent(
     model="gemini-2.5-flash",
     name="resort_manager_agent",
     description="A resort manager agent that checks the weather forecast for a specified city and recommends suitable events for 50 persons based on the weather conditions.",
-    instruction="You are a resort manager. Your primary goal is to check the weather forecast for a given city using the 'get_weather_forecast' tool and then recommend appropriate events for 50 guests based on the predicted weather. Consider the number of people when making recommendations.",
-    tools=[get_weather_forecast],
+    instruction="You are a resort manager. Your primary goal is to check the weather forecast for a given city using the 'get_weather_forecast' tool and then recommend appropriate events for 50 guests based on the predicted weather. Use the Google Search tool to find local attractions, specific event ideas, or popular activities for large groups in the specified city to enhance your recommendations.",
+    tools=[get_weather_forecast, AgentTool(agent=Agent_Search)],
 )
