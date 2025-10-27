@@ -223,6 +223,10 @@ def display_chat_history():
             else:
                 # Display all normal, fully typed messages
                 st.markdown(message["content"])
+                
+            # --- CHANGE APPLIED: Display image if it exists in the message ---
+            if "image" in message and message["image"]:
+                st.image(message["image"], caption="Generated Marketing Image")
 
 def handle_user_input(prompt_input):
     """Processes user input (text and files) and sends it to the agent."""
@@ -309,7 +313,15 @@ def handle_user_input(prompt_input):
         final_response = stream_text_animation(response_placeholder, agent_response, TYPING_SPEED)
         
         # 6. Update the state 
-        st.session_state.messages.append({"role": "agent", "content": final_response})
+        agent_message = {"role": "agent", "content": final_response}
+        
+        # --- CHANGE APPLIED: Check for image and add it to the message state ---
+        # If the agent's response mentions the marketing image, add its path to the message object.
+        if "marketing-image.png" in final_response:
+            image_path = "assets/marketing-image.png"
+            agent_message["image"] = image_path
+        
+        st.session_state.messages.append(agent_message)
 
     st.rerun()
     

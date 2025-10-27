@@ -6,10 +6,6 @@ from google import genai
 from PIL import Image
 from io import BytesIO
 import json
-# REMOVE THE GLOBAL IMPORT: from retreat_manager.utils.api_client import TikkieAPIClient
-
-
-# REMOVE THE GLOBAL INSTANTIATION: tikkie_client = TikkieAPIClient()
 
 client = genai.Client(api_key="AIzaSyDT1Zq7M1yc3br4mTMAxh4F6EBtWFWymWs")
 
@@ -36,7 +32,7 @@ def generate_image(prompt: str) -> dict:
                 text_response += part.text + "\n"
             elif part.inline_data is not None:
                 image = Image.open(BytesIO(part.inline_data.data))
-                image.save("marketing-image.png")
+                image.save("chat_ui/assets/marketing-image.png")
                 image_saved = True
 
         if image_saved:
