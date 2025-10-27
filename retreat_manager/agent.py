@@ -7,7 +7,9 @@ from PIL import Image
 from io import BytesIO
 import json
 
-client = genai.Client(api_key="AIzaSyDT1Zq7M1yc3br4mTMAxh4F6EBtWFWymWs")
+# client = genai.Client(api_key="AIzaSyDT1Zq7M1yc3br4mTMAxh4F6EBtWFWymWs")
+
+client = genai.Client()
 
 # --- Image Generation Tool ---
 def generate_image(prompt: str) -> dict:
