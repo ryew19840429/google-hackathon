@@ -2,9 +2,50 @@ from google.adk.agents.llm_agent import Agent
 from google.adk.tools.agent_tool import AgentTool
 import requests
 from google.adk.tools import google_search
+from google import genai
+from PIL import Image
+from io import BytesIO
 import json
 
-# Tool implementation
+client = genai.Client(api_key="AIzaSyDT1Zq7M1yc3br4mTMAxh4F6EBtWFWymWs")
+
+# --- Image Generation Tool ---
+def generate_image(prompt: str) -> dict:
+    """Generates an image based on a text prompt and saves it as 'cat.png'."""
+    try:
+        # Call the API to generate content
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=prompt,
+        )
+
+        image_saved = False
+        text_response = ""
+        
+        # The response can contain both text and image data.
+        # Iterate through the parts to find and save the image.
+        if not response.candidates:
+             return {"status": "error", "message": "No candidates found in response."}
+             
+        for part in response.candidates[0].content.parts:
+            if part.text is not None:
+                text_response += part.text + "\n"
+            elif part.inline_data is not None:
+                image = Image.open(BytesIO(part.inline_data.data))
+                image.save("cat.png")
+                image_saved = True
+
+        if image_saved:
+            return {"status": "success", "message": "Image saved as 'cat.png'.", "text_response": text_response.strip()}
+        elif text_response:
+             return {"status": "info", "message": "No image generated, received text response.", "text_response": text_response.strip()}
+        else:
+             return {"status": "error", "message": "No image data or text found in response."}
+
+    except Exception as e:
+        return {"status": "error", "message": f"An error occurred: {str(e)}"}
+
+# --- Weather Tool implementation ---
 def get_weather_forecast(city: str) -> dict:
     """Returns the weather forecast, including maximum wind speed and precipitation sum, for the next day in a specified city."""
     
@@ -49,6 +90,8 @@ def get_weather_forecast(city: str) -> dict:
 
     return {"status": "success", "city": city, "forecast": tomorrow_forecast}
 
+# --- Agent Definitions ---
+
 Agent_Search = Agent(
     model='gemini-2.0-flash-exp',
     name='SearchAgent',
@@ -62,6 +105,15 @@ root_agent = Agent(
     model="gemini-2.5-flash",
     name="resort_manager_agent",
     description="A resort manager agent that checks the weather forecast for a specified city and recommends suitable events for 50 persons based on the weather conditions.",
-    instruction="You are a resort manager. Your primary goal is to check the weather forecast for a given city using the 'get_weather_forecast' tool and then recommend appropriate events for 50 guests based on the predicted weather. Use the Google Search tool to find local attractions, specific event ideas, or popular activities for large groups in the specified city to enhance your recommendations.",
-    tools=[get_weather_forecast, AgentTool(agent=Agent_Search)],
+    instruction="""
+    1.You are a resort manager. Your primary goal is to check the weather forecast for a given city using the 'get_weather_forecast' tool and then recommend appropriate events for 50 guests based on the predicted weather. 
+    2.Use the Google Search tool to find local attractions, specific event ideas, or popular activities for large groups in the specified city to enhance your recommendations.
+    3.If the user ask for an image, call the generate_image tool
+    """,
+    # ADDED the new generate_image tool to the list
+    tools=[get_weather_forecast, AgentTool(agent=Agent_Search), generate_image],
 )
+
+# You can now invoke the agent. For example:
+# response = root_agent.generate_content("What's the weather in London tomorrow and suggest an event? Also, generate an image of a sunny park.")
+# print(response)
