@@ -48,10 +48,9 @@ def get_weather_forecast(city: str) -> dict:
     return {"status": "success", "city": city, "forecast": tomorrow_forecast}
 
 root_agent = Agent(
-    model='gemini-2.5-flash',
-    name='root_agent',
-    # Updated description to reflect all new capabilities
-    description="Tells the weather forecast for the next day in a specified city, including wind strength and total precipitation.",
-    instruction="You are a helpful assistant that tells the weather forecast. Use the 'get_weather_forecast' tool for this purpose.",
+    model="gemini-2.5-flash",
+    name="resort_manager_agent",
+    description="A resort manager agent that checks the weather forecast for a specified city and recommends suitable events for 50 persons based on the weather conditions.",
+    instruction="You are a resort manager. Your primary goal is to check the weather forecast for a given city using the 'get_weather_forecast' tool and then recommend appropriate events for 50 guests based on the predicted weather. Consider the number of people when making recommendations.",
     tools=[get_weather_forecast],
 )
