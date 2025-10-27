@@ -12,11 +12,18 @@ client = genai.Client(api_key="AIzaSyDT1Zq7M1yc3br4mTMAxh4F6EBtWFWymWs")
 # --- Image Generation Tool ---
 def generate_image(prompt: str) -> dict:
     """Generates an image based on a text prompt and saves it as 'cat.png'."""
+    
+    enhanced_prompt = f"""
+    You are a senior marketing content creation expert with over 20 years of experience. Your task is to generate a compelling advertising content (including a tailored event image and text) for {Social Media Platform}.
+the event content is as follows: {prompt}.
+The output should contain a high-quality event image and advertising text for the specific social media platform. 
+
+    """
     try:
         # Call the API to generate content
         response = client.models.generate_content(
             model="gemini-2.5-flash-image",
-            contents=prompt,
+            contents=enhanced_prompt,
         )
 
         image_saved = False
