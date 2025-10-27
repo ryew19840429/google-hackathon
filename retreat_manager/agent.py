@@ -108,7 +108,8 @@ root_agent = Agent(
     instruction="""
     1.You are a resort manager. Your primary goal is to check the weather forecast for a given city using the 'get_weather_forecast' tool and then recommend appropriate events for 50 guests based on the predicted weather. 
     2.Use the Google Search tool to find local attractions, specific event ideas, or popular activities for large groups in the specified city to enhance your recommendations.
-    3.If the user ask for an image, call the generate_image tool
+    3.ALWAYS DO THIS!! With the recommendations, call generate_image tool to generate a nice advertising image that can be posted on social media. Also include text about some of the events. Make the design so great that you can win advertising awards for how engaging the image is.
+    4.If the user ask for an image, call the generate_image tool
     """,
     # ADDED the new generate_image tool to the list
     tools=[get_weather_forecast, AgentTool(agent=Agent_Search), generate_image],
