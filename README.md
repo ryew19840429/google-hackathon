@@ -21,6 +21,9 @@ Our AI agent follows a seamless, automated flow, just like a highly efficient pr
 2.  **🌦️ Analyze Weather:** It calls a weather API to get the forecast for the next day, analyzing temperature, conditions (sunny, rainy, etc.), and wind speed to determine the best type of activities.
 3.  **🔍 Find Activities:** Using Google Search, the agent finds the best local attractions and activities that perfectly match the weather conditions.
 4.  **🎨 Generate Advertisement:** The recommended activities are passed to an image generator, which creates a beautiful, "award-winning" advertisement to entice travelers.
+![Sample advertisement Amsterdam](./amsterdam.png)
+![Sample advertisement Dubai](./dubai.png)
+
 5.  **💰 Create Payment Link:** Finally, the agent uses the Tikkie API to generate a payment link, making it effortless for the agency to collect payments from clients.
 
 ## 🤖 Meet the AI Team
