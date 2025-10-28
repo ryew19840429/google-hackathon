@@ -1,3 +1,4 @@
+![Travel Agentcy Banner](./banner.png)
 This project is an intelligent, one-stop travel agent that empowers the employees of "I Love Travel Agentcy" to craft perfect, weather-appropriate vacation plans for any city, for the very next day.
 
 ---
