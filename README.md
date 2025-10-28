@@ -37,6 +37,7 @@ Our agent isn't just one tool; it's a coordinated team of digital specialists, e
 
 ## 🖥️ Custom UI
 
+![Login](./login.png)
 And where does this team work? We developed a sleek and intuitive front-end using **Streamlit** to serve as their digital office. It includes a simple login system that personalizes the agent's interactions, creating an engaging and collaborative workspace for the human travel agent.
 
 ## 🏆 Example Outputs
