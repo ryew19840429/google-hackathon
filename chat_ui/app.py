@@ -332,7 +332,7 @@ def handle_user_input(prompt_input):
 def login_form():
     """Displays the login form and handles the authentication logic."""
     
-    st.title("Travel Agentcy - Login")
+    st.image("assets/banner.png")
     
     with st.form("login_form"):
         st.markdown("Enter your credentials to access the chat application.")
