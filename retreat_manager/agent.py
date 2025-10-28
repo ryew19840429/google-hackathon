@@ -6,8 +6,14 @@ from google import genai
 from PIL import Image
 from io import BytesIO
 import json
+from dotenv import load_dotenv
+import os
 
-client = genai.Client(api_key="AIzaSyDT1Zq7M1yc3br4mTMAxh4F6EBtWFWymWs")
+load_dotenv()
+
+GOOGLE_API_KEY=os.getenv('GOOGLE_API_KEY')
+
+client = genai.Client(api_key=GOOGLE_API_KEY)
 
 # --- Image Generation Tool ---
 def generate_image(prompt: str) -> dict:

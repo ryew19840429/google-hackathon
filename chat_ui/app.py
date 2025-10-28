@@ -367,7 +367,8 @@ def main():
     st.set_option("client.toolbarMode", "minimal")
     # Set page configuration
     st.set_page_config(
-        page_title="My Travel Agent", 
+        page_title="Travel Agencty Assistant", 
+        page_icon="✈️",
         layout="centered",
         initial_sidebar_state="collapsed"
     )
@@ -380,7 +381,107 @@ def main():
         
     # --- Main App Logic (Runs only if logged_in is True or LOGIN_ENABLED is False) ---
     
-    st.title(f"I Love Travel Agentcy") 
+    # Custom CSS for main chat interface
+    st.markdown("""
+        <style>
+        /* Main app background */
+        .stApp {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        
+        /* Header styling */
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            font-family: 'Helvetica Neue', sans-serif;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Subtitle styling */
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            font-weight: 500;
+        }
+        
+        /* Chat message containers */
+        [data-testid="stChatMessageContent"] {
+            background: white;
+            border-radius: 15px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* User message styling */
+        [data-testid="stChatMessage"]:has([data-testid="stChatMessageContent"]:first-child) {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 0.2rem;
+        }
+        
+        /* Chat input styling */
+        [data-testid="stChatInput"] {
+            border-radius: 25px;
+            border: 2px solid #e2e8f0;
+            background: white;
+        }
+        
+        [data-testid="stChatInput"] textarea {
+            border-radius: 20px;
+        }
+        
+        /* Spinner styling */
+        .stSpinner > div {
+            border-top-color: #667eea !important;
+        }
+        
+        /* Image styling */
+        [data-testid="stImage"] {
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Welcome banner */
+        .welcome-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        /* Chat container */
+        [data-testid="stChatMessageContainer"] {
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Welcome header with airplane icon
+    st.markdown("""
+        <div style='text-align: center; margin-bottom: 1rem;'>
+            <div style='font-size: 3.5rem; margin-bottom: 0.5rem;'>✈️</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.title(f"Your Personal Travel Assistant") 
+    
+    # Subtitle with user greeting
+    current_user = get_user_id().title()
+    st.markdown(f"<p class='subtitle'>Welcome back, {current_user}! How can I help you plan your next adventure today?</p>", unsafe_allow_html=True)
     
     # Attempt to create session only if not already created or attempted
     if st.session_state.session_id is None and not st.session_state.session_creation_attempted:
@@ -404,7 +505,7 @@ def main():
     # --- Main Chat Input Loop ---
     
     prompt_input = st.chat_input(
-        "Type something to help with your travel agent business", 
+        "✨ Share your travel plans or ask me anything...", 
         disabled=st.session_state.session_id is None, 
         accept_file=True
     )
