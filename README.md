@@ -13,6 +13,8 @@ Traditionally, planning a custom vacation itinerary required a whole team: a res
 
 Our solution is a single, powerful AI agent that automates the entire workflow. It acts as a digital "super-employee," performing the roles of an entire team to deliver perfect, weather-aware vacation plans in seconds. This frees up human agents to focus on what they do best: building relationships with clients.
 
+Our [design logic canvas](https://excalidraw.com/#room=8f1e34750331c3831854,dXFkaOPSvKkLrFWw5uGUSw) is the collaborative ideation generation, planning and prototyping playground.
+
 ## 🚀 How It Works
 
 Our AI agent follows a seamless, automated flow, just like a highly efficient project manager:
